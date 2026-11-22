@@ -1,5 +1,5 @@
 /* Extended Module Player
- * Copyright (C) 1996-2021 Claudio Matsuoka and Hipolito Carraro Jr
+ * Copyright (C) 1996-2026 Claudio Matsuoka and Hipolito Carraro Jr
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -130,9 +130,9 @@ static int chip_load(struct module_data *m, HIO_HANDLE *f, const int start)
 		xxs->lps = mh.ins[i].loop_start;
 		xxs->lpe = xxs->lps + 2 * mh.ins[i].loop_size;
 		xxs->flg = mh.ins[i].loop_size > 1 ? XMP_SAMPLE_LOOP : 0;
-		sub->fin = (int8) (mh.ins[i].finetune << 4);
+		sub->fin = (int8)((uint8)mh.ins[i].finetune << 4);
 		sub->vol = mh.ins[i].volume;
-		sub->pan = 0x80;
+		sub->pan = XMP_INST_NO_DEFAULT_PAN;
 		sub->sid = i;
 
 		if (xxs->len > 0)

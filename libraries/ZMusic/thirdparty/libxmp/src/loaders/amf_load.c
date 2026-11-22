@@ -1,5 +1,5 @@
 /* Extended Module Player
- * Copyright (C) 1996-2024 Claudio Matsuoka and Hipolito Carraro Jr
+ * Copyright (C) 1996-2026 Claudio Matsuoka and Hipolito Carraro Jr
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -246,7 +246,7 @@ static int amf_load(struct module_data *m, HIO_HANDLE *f, const int start)
 
 		mod->xxi[i].nsm = 1;
 		mod->xxi[i].sub[0].sid = i;
-		mod->xxi[i].sub[0].pan = 0x80;
+		mod->xxi[i].sub[0].pan = XMP_INST_NO_DEFAULT_PAN;
 
 		if (ver >= 0x0a) {
 			mod->xxs[i].len = hio_read32l(f);
@@ -566,7 +566,7 @@ static int amf_load(struct module_data *m, HIO_HANDLE *f, const int start)
 						fxt = FX_SURROUND;
 						fxp = 1;
 					} else if (t3 >= 0xC0 || t3 <= 0x40) {
-						int pan = ((int8)t3 << 1) + 0x80;
+						int pan = ((int8)t3 * 2) + 0x80;
 						fxt = FX_SETPAN;
 						fxp = MIN(0xff, pan);
 					}

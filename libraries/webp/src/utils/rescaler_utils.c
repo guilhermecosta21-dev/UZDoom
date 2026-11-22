@@ -15,7 +15,9 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "src/dsp/dsp.h"
+#include "include/webp/types.h"
 #include "src/utils/rescaler_utils.h"
 #include "src/utils/utils.h"
 

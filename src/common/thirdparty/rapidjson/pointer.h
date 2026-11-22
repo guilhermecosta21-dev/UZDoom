@@ -28,6 +28,12 @@ RAPIDJSON_DIAG_PUSH
 RAPIDJSON_DIAG_OFF(4512) // assignment operator could not be generated
 #endif
 
+#if defined(RAPIDJSON_CPLUSPLUS) && RAPIDJSON_CPLUSPLUS >= 201703L
+#define RAPIDJSON_IF_CONSTEXPR if constexpr
+#else
+#define RAPIDJSON_IF_CONSTEXPR if
+#endif
+
 RAPIDJSON_NAMESPACE_BEGIN
 
 static const SizeType kPointerInvalidIndex = ~SizeType(0);  //!< Represents an invalid index in GenericPointer::Token
@@ -291,7 +297,7 @@ public:
         SizeType length = static_cast<SizeType>(end - buffer);
         buffer[length] = '\0';
 
-        if (sizeof(Ch) == 1) {
+        RAPIDJSON_IF_CONSTEXPR (sizeof(Ch) == 1) {
             Token token = { reinterpret_cast<Ch*>(buffer), length, index };
             return Append(token, allocator);
         }
@@ -890,10 +896,16 @@ private:
             std::memcpy(nameBuffer_, rhs.nameBuffer_, nameBufferSize * sizeof(Ch));
         }
 
-        // Adjust pointers to name buffer
-        std::ptrdiff_t diff = nameBuffer_ - rhs.nameBuffer_;
-        for (Token *t = tokens_; t != tokens_ + rhs.tokenCount_; ++t)
-            t->name += diff;
+        // The names of each token point to a string in the nameBuffer_. The
+        // previous memcpy copied over string pointers into the rhs.nameBuffer_,
+        // but they should point to the strings in the new nameBuffer_.
+        for (size_t i = 0; i < rhs.tokenCount_; ++i) {
+          // The offset between the string address and the name buffer should
+          // still be constant, so we can just get this offset and set each new
+          // token name according the new buffer start + the known offset.
+          std::ptrdiff_t name_offset = rhs.tokens_[i].name - rhs.nameBuffer_;
+          tokens_[i].name = nameBuffer_ + name_offset;
+        }
 
         return nameBuffer_ + nameBufferSize;
     }

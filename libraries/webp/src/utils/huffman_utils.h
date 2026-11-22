@@ -15,6 +15,7 @@
 #define WEBP_UTILS_HUFFMAN_UTILS_H_
 
 #include <assert.h>
+
 #include "include/webp/format_constants.h"
 #include "include/webp/types.h"
 

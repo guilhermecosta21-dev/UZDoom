@@ -56,9 +56,11 @@ set(WEBP_SOURCES
 	src/dsp/filters_neon.c
 	src/dsp/filters_sse2.c
 	src/dsp/lossless.c
+	src/dsp/lossless_avx2.c
 	src/dsp/lossless.h
 	src/dsp/lossless_common.h
 	src/dsp/lossless_enc.c
+	src/dsp/lossless_enc_avx2.c
 	src/dsp/lossless_enc_mips32.c
 	src/dsp/lossless_enc_mips_dsp_r2.c
 	src/dsp/lossless_enc_msa.c

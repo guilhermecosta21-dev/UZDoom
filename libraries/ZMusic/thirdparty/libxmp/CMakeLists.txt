@@ -8,12 +8,14 @@ add_library(libxmp OBJECT
     src/read_event.c
     src/dataio.c
     src/misc.c
+    src/path.c
     src/mkstemp.c
     src/md5.c
     src/lfo.c
     src/scan.c
     src/control.c
     src/far_extras.c
+    src/flt_extras.c
     src/med_extras.c
     src/filter.c
     src/effects.c

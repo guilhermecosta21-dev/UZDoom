@@ -1,5 +1,5 @@
 /* Extended Module Player
- * Copyright (C) 1996-2024 Claudio Matsuoka and Hipolito Carraro Jr
+ * Copyright (C) 1996-2026 Claudio Matsuoka and Hipolito Carraro Jr
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -132,8 +132,6 @@ static int imf_test(HIO_HANDLE *f, char *t, const int start)
 }
 
 #define NONE 0xff
-#define FX_IMF_FPORTA_UP 0xfe
-#define FX_IMF_FPORTA_DN 0xfd
 
 
 /* Effect conversion table */
@@ -189,20 +187,6 @@ static void xlat_fx (int c, uint8 *fxt, uint8 *fxp)
     }
 
     switch (*fxt = fx[*fxt]) {
-    case FX_IMF_FPORTA_UP:
-	*fxt = FX_PORTA_UP;
-	if (*fxp < 0x30)
-	    *fxp = LSN (*fxp >> 2) | 0xe0;
-	else
-	    *fxp = LSN (*fxp >> 4) | 0xf0;
-	break;
-    case FX_IMF_FPORTA_DN:
-	*fxt = FX_PORTA_DN;
-	if (*fxp < 0x30)
-	    *fxp = LSN (*fxp >> 2) | 0xe0;
-	else
-	    *fxp = LSN (*fxp >> 4) | 0xf0;
-	break;
     case FX_EXTENDED:			/* Extended effects */
 	switch (h) {
 	case 0x1:			/* Set filter */
@@ -246,7 +230,7 @@ static int imf_load(struct module_data *m, HIO_HANDLE *f, const int start)
 {
     struct xmp_module *mod = &m->mod;
     int c, r, i, j;
-    struct xmp_event *event = 0, dummy;
+    struct xmp_event *event = NULL, dummy;
     struct imf_header ih;
     struct imf_instrument ii;
     struct imf_sample is;
@@ -270,7 +254,9 @@ static int imf_load(struct module_data *m, HIO_HANDLE *f, const int start)
     ih.magic = hio_read32b(f);
 
     /* Sanity check */
-    if (ih.len > 256 || ih.pat > 256 || ih.ins > 255) {
+    /* Maximum supported instruments by UI is 99, but Orpheus will load
+     * XMs with 128 and resave all 128 to IMF. */
+    if (ih.len > 256 || ih.pat > 256 || ih.ins > 128) {
 	return -1;
     }
 
@@ -295,7 +281,7 @@ static int imf_load(struct module_data *m, HIO_HANDLE *f, const int start)
 
     mod->len = ih.len;
     mod->ins = ih.ins;
-    mod->smp = 1024;
+    mod->smp = MAX_SAMPLES;
     mod->pat = ih.pat;
 
     if (ih.flg & 0x01)
@@ -377,10 +363,12 @@ static int imf_load(struct module_data *m, HIO_HANDLE *f, const int start)
 	    if (b & IMF_NI_FOLLOW) {
 		n = hio_read8(f);
 		switch (n) {
-		case 255:
-		case 160:	/* ?! */
+		case 255:	/* No note */
+		    n = 0;
+		    break;
+		case 160:	/* Key off */
 		    n = XMP_KEY_OFF;
-		    break;	/* Key off */
+		    break;
 		default:
 		    n = 13 + 12 * MSN (n) + LSN (n);
 		}
@@ -436,8 +424,9 @@ static int imf_load(struct module_data *m, HIO_HANDLE *f, const int start)
 	ii.nsm = hio_read16l(f);
 	ii.magic = hio_read32b(f);
 
-	/* Sanity check */
-	if (ii.nsm > 255)
+	/* Orpheus does not support more than 16 samples per instrument and
+	 * will ignore any samples past 16 hexedited into a file. */
+	if (ii.nsm > 16)
 	    return -1;
 
 	/* Imago Orpheus may emit blank instruments with a signature
@@ -485,8 +474,17 @@ static int imf_load(struct module_data *m, HIO_HANDLE *f, const int start)
 
 	for (j = 0; j < ii.nsm; j++, smp_num++) {
 	    struct xmp_subinstrument *sub = &xxi->sub[j];
-	    struct xmp_sample *xxs = &mod->xxs[smp_num];
+	    struct xmp_sample *xxs;
 	    int sid;
+
+	    /* Orpheus is limited to 200 samples, but in edge cases will
+	     * emit files with more than that. Support growing the sample
+	     * list for now just in case... */
+	    if (smp_num >= mod->smp) {
+		if (libxmp_realloc_samples(m, mod->smp * 3 / 2) < 0)
+		    return -1;
+	    }
+	    xxs = &mod->xxs[smp_num];
 
 	    hio_read(is.name, 13, 1, f);
 	    hio_read(is.unused1, 3, 1, f);
@@ -503,7 +501,9 @@ static int imf_load(struct module_data *m, HIO_HANDLE *f, const int start)
 	    is.dram = hio_read32l(f);
 	    is.magic = hio_read32b(f);
 
-	    if (is.magic != MAGIC_IS10 && is.magic != MAGIC_IW10) {
+	    /* The sample magic can also be four nuls (encountered importing
+	     * an XM with >=13 instruments x 16 samples and resaving as IMF). */
+	    if (is.magic != MAGIC_IS10 && is.magic != MAGIC_IW10 && is.magic != 0) {
 		D_(D_CRIT "unknown sample %d:%d magic %08x @ %ld", i, j,
 		   is.magic, hio_tell(f));
 		return -1;
@@ -515,7 +515,7 @@ static int imf_load(struct module_data *m, HIO_HANDLE *f, const int start)
 
 	    sub->sid = smp_num;
 	    sub->vol = is.vol;
-	    sub->pan = (is.flg & IMF_SAMPLE_DEFPAN) ? is.pan : -1;
+	    sub->pan = (is.flg & IMF_SAMPLE_DEFPAN) ? is.pan : XMP_INST_NO_DEFAULT_PAN;
 	    xxs->len = is.len;
 	    xxs->lps = is.lps;
 	    xxs->lpe = is.lpe;
@@ -540,7 +540,8 @@ static int imf_load(struct module_data *m, HIO_HANDLE *f, const int start)
 		    (is.flg & IMF_SAMPLE_BIDI)   ? 'B' : '.',
 		    (is.flg & IMF_SAMPLE_16BIT)  ? '+' : '.',
 		    (is.flg & IMF_SAMPLE_DEFPAN) ? 'P' : '.',
-		    (is.magic == MAGIC_IS10) ? "IS" : "IW");
+		    (is.magic == MAGIC_IS10) ? "IS" :
+		    (is.magic == MAGIC_IW10) ? "IW" : "..");
 
 	    libxmp_c2spd_to_note(is.rate, &sub->xpo, &sub->fin);
 
@@ -553,18 +554,13 @@ static int imf_load(struct module_data *m, HIO_HANDLE *f, const int start)
 	}
     }
 
-    mod->smp = smp_num;
-    mod->xxs = (struct xmp_sample *) realloc(mod->xxs, sizeof(struct xmp_sample) * mod->smp);
-    if (mod->xxs == NULL) {
-        return -1;
-    }
-    m->xtra = (struct extra_sample_data *) realloc(m->xtra, sizeof(struct extra_sample_data) * mod->smp);
-    if (m->xtra == NULL) {
-        return -1;
+    if (smp_num < mod->smp) {
+	if (libxmp_realloc_samples(m, smp_num) < 0)
+	   return -1;
     }
 
     m->c4rate = C4_NTSC_RATE;
-    m->quirk |= QUIRK_FILTER | QUIRKS_ST3 | QUIRK_ARPMEM;
+    m->quirk |= QUIRK_FILTER | QUIRK_MARKER | QUIRK_RSTCHN | QUIRK_ARPMEM;
     m->flow_mode = FLOW_MODE_ORPHEUS;
     m->read_event_type = READ_EVENT_ST3;
 

@@ -67,6 +67,7 @@ enum WriteFlag {
     kWriteNoFlags = 0,              //!< No flags are set.
     kWriteValidateEncodingFlag = 1, //!< Validate encoding of JSON strings.
     kWriteNanAndInfFlag = 2,        //!< Allow writing of Infinity, -Infinity and NaN.
+    kWriteNanAndInfNullFlag = 4,    //!< Allow writing of Infinity, -Infinity and NaN as null.
     kWriteDefaultFlags = RAPIDJSON_WRITE_DEFAULT_FLAGS  //!< Default write flags. Can be customized by defining RAPIDJSON_WRITE_DEFAULT_FLAGS
 };
 
@@ -349,7 +350,7 @@ protected:
     bool WriteDouble(double d) {
 		bool ret = true;
 		if (internal::Double(d).IsNanOrInf()) {
-			if (!(writeFlags & kWriteNanAndInfFlag))
+			if (!(writeFlags & kWriteNanAndInfFlag) && !(writeFlags & kWriteNanAndInfNullFlag))
 			{
 				// if we abort here, the writer is left in a broken state, unable to recover, so better write a 0 in addition to returning an error.
 				ret = false;
@@ -357,6 +358,11 @@ protected:
 			}
 			else
 			{
+				if (writeFlags & kWriteNanAndInfNullFlag) {
+					PutReserve(*os_, 4);
+					PutUnsafe(*os_, 'n'); PutUnsafe(*os_, 'u'); PutUnsafe(*os_, 'l'); PutUnsafe(*os_, 'l');
+					return true;
+				}
 				if (internal::Double(d).IsNan()) {
 					PutReserve(*os_, 3);
 					PutUnsafe(*os_, 'N'); PutUnsafe(*os_, 'a'); PutUnsafe(*os_, 'N');
@@ -397,9 +403,9 @@ protected:
         };
 
         if (TargetEncoding::supportUnicode)
-            PutReserve(*os_, 2 + length * 6); // "\uxxxx..."
+            PutReserve(*os_, 2 + static_cast<size_t>(length) * 6); // "\uxxxx..."
         else
-            PutReserve(*os_, 2 + length * 12);  // "\uxxxx\uyyyy..."
+            PutReserve(*os_, 2 + static_cast<size_t>(length) * 12);  // "\uxxxx\uyyyy..."
 
         PutUnsafe(*os_, '\"');
         GenericStringStream<SourceEncoding> is(str);
@@ -563,6 +569,11 @@ inline bool Writer<StringBuffer>::WriteDouble(double d) {
         }
         else
         {
+            if (kWriteDefaultFlags & kWriteNanAndInfNullFlag) {
+                PutReserve(*os_, 4);
+                PutUnsafe(*os_, 'n'); PutUnsafe(*os_, 'u'); PutUnsafe(*os_, 'l'); PutUnsafe(*os_, 'l');
+                return true;
+            }
             if (internal::Double(d).IsNan()) {
                 PutReserve(*os_, 3);
                 PutUnsafe(*os_, 'N'); PutUnsafe(*os_, 'a'); PutUnsafe(*os_, 'N');

@@ -153,7 +153,9 @@ set(VULKAN_INCLUDES
 	include/vulkan/vulkan_macos.h
 	include/vulkan/vulkan_metal.h
 	include/vulkan/vulkan_mir.h
+	include/vulkan/vulkan_ohos.h
 	include/vulkan/vulkan_screen.h
+	include/vulkan/vulkan_ubm.h
 	include/vulkan/vulkan_vi.h
 	include/vulkan/vulkan_wayland.h
 	include/vulkan/vulkan_win32.h
