@@ -6,7 +6,7 @@ project(libgme)
 include (CheckCXXCompilerFlag)
 
 # When version is changed, also change the one in gme/gme.h to match
-set(GME_VERSION 0.6.2 CACHE INTERNAL "libgme Version")
+set(GME_VERSION 0.6.5 CACHE INTERNAL "libgme Version")
 
 if(COMPILER_IS_GNUCXX_COMPATIBLE)
     add_compile_options(-Wall -Wextra)

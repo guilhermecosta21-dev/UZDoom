@@ -224,6 +224,7 @@ blargg_err_t Hes_Emu::start_track_( int track )
 	memset( sgx, 0, sizeof sgx );
 
 	apu.reset();
+	adpcm.reset();
 	cpu::reset();
 
 	for ( unsigned i = 0; i < sizeof header_.banks; i++ )
@@ -295,6 +296,13 @@ void Hes_Emu::cpu_write_( hes_addr_t addr, int data )
 		// avoid going way past end when a long block xfer is writing to I/O space
 		hes_time_t t = min( time(), end_time() + 8 );
 		apu.write_data( t, addr, data );
+		return;
+	}
+
+	if ( (unsigned) (addr - adpcm.io_addr) < adpcm.io_size )
+	{
+		time_t t = min( time(), end_time() + 6 );
+		adpcm.write_data( t, addr, data );
 		return;
 	}
 
@@ -393,10 +401,16 @@ int Hes_Emu::cpu_read_( hes_addr_t addr )
 			return status;
 		}
 
+	case 0x180A:
+	case 0x180B:
+	case 0x180C:
+	case 0x180D:
+		return adpcm.read_data( time, addr );
+
 	#ifndef NDEBUG
 		case 0x1000: // I/O port
-		case 0x180C: // CD-ROM
-		case 0x180D:
+		//case 0x180C: // CD-ROM
+		//case 0x180D:
 			break;
 
 		default:
@@ -498,7 +512,7 @@ int Hes_Emu::cpu_done()
 	return 0;
 }
 
-static void adjust_time( blargg_long& time, hes_time_t delta )
+static void adjust_time( int32_t& time, hes_time_t delta )
 {
 	if ( time < future_hes_time )
 	{
@@ -530,6 +544,7 @@ blargg_err_t Hes_Emu::run_clocks( blip_time_t& duration_, int )
 	::adjust_time( irq.timer, duration );
 	::adjust_time( irq.vdp,   duration );
 	apu.end_frame( duration );
+	adpcm.end_frame( duration );
 
 	return 0;
 }

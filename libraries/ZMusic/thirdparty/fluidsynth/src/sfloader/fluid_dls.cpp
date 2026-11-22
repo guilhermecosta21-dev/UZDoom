@@ -3150,7 +3150,6 @@ static fluid_preset_t *fluid_dls_sfont_get_preset(fluid_sfont_t *sfont, int bank
     {
         for(auto &inst : dlsfont->instruments_fluid_data)
         {
-            // Melodic bank fallback for GM2 bank style
             if(bank == 0 && !inst.is_drums && inst.bankmsb == 0x79 && inst.pcnum == prenum)
             {
                 return &inst.fluid;
@@ -3226,7 +3225,8 @@ static int fluid_dls_preset_get_banknum(fluid_preset_t *preset) noexcept
         return inst->bankmsb + (inst->is_drums ? DRUM_INST_BANK : 0);
     }
 
-    if(synth->bank_select == FLUID_BANK_STYLE_XG)
+    if(synth->bank_select == FLUID_BANK_STYLE_XG ||
+            synth->bank_select == FLUID_BANK_STYLE_GM2)
     {
         if(inst->is_drums)
         {
@@ -3313,6 +3313,12 @@ static int fluid_dls_preset_noteon(fluid_preset_t *preset, fluid_synth_t *synth,
                 if(art.gens[i].has_value())
                 {
                     fluid_voice_gen_set(voice, i, art.gens[i].value());
+                }
+                fluid_real_t awe_val;
+                /* ...unless the default value has been overridden by an AWE32 NRPN */
+                if (FLUID_UNLIKELY(fluid_channel_get_override_gen_default(synth->channel[chan], i, &awe_val)))
+                {
+                    fluid_voice_gen_set(voice, i, awe_val);
                 }
             }
 

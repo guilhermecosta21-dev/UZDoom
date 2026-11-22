@@ -128,22 +128,11 @@ endif ( LIBSNDFILE_HASVORBIS )
 
 
 set ( INPUTS_REPORT "${INPUTS_REPORT}Support for DLS files:   " )
-if ( ENABLE_NATIVE_DLS OR LIBINSTPATCH_SUPPORT )
+if ( ENABLE_NATIVE_DLS )
     set ( INPUTS_REPORT "${INPUTS_REPORT}yes\n" )
 else()
     set ( INPUTS_REPORT "${INPUTS_REPORT}no\n" )
 endif()
-if ( ENABLE_NATIVE_DLS )
-    set ( INPUTS_REPORT "${INPUTS_REPORT}  native:                yes\n" )
-else()
-    set ( INPUTS_REPORT "${INPUTS_REPORT}  native:                no\n" )
-endif()
-if ( LIBINSTPATCH_SUPPORT )
-    set ( INPUTS_REPORT "${INPUTS_REPORT}  libinstpatch:          yes\n" )
-else ( LIBINSTPATCH_SUPPORT )
-    set ( INPUTS_REPORT "${INPUTS_REPORT}  libinstpatch:          no\n" )
-endif ( LIBINSTPATCH_SUPPORT )
-
 
 set ( RENDERING_REPORT "\n" )
 
@@ -161,6 +150,16 @@ endif ( LIBSNDFILE_SUPPORT )
 
 
 set ( MISC_REPORT "\nMiscellaneous support:\n" )
+
+if    ( SIGNALSMITH_SUPPORT )
+    set ( MISC_REPORT "${MISC_REPORT}  Limiter:               yes\n" )
+else  ( SIGNALSMITH_SUPPORT )
+  if    ( SIGNALSMITH_AUDIO_BASICS STREQUAL SIGNALSMITH_AUDIO_BASICS-NOTFOUND )
+        set ( MISC_REPORT "${MISC_REPORT}  Limiter:               no (signalsmith-audio/basics not found)\n" )
+  else  ( SIGNALSMITH_AUDIO_BASICS STREQUAL SIGNALSMITH_AUDIO_BASICS-NOTFOUND )
+        set ( MISC_REPORT "${MISC_REPORT}  Limiter:               no\n" )
+  endif ( SIGNALSMITH_AUDIO_BASICS STREQUAL SIGNALSMITH_AUDIO_BASICS-NOTFOUND )
+endif ( SIGNALSMITH_SUPPORT )
 
 if ( DBUS_SUPPORT )
   set ( MISC_REPORT "${MISC_REPORT}  D-Bus:                 yes\n" )
@@ -276,14 +275,7 @@ else ( ENABLE_COVERAGE )
   set ( DEVEL_REPORT "${DEVEL_REPORT}  Coverage:              no\n" )
 endif ( ENABLE_COVERAGE )
 
-message( STATUS 
-        "\n**************************************************************\n"
-        "Build Summary:\n"
-        "FluidSynth Version:    " ${FLUIDSYNTH_VERSION} "\n"
-        "Library version:       " ${LIB_VERSION_INFO} "\n"
-        "Git revision:          " ${FluidSynth_WC_REVISION} "\n"
-        "Build type:            " ${CMAKE_BUILD_TYPE} "\n"
-        "Install Prefix:        " ${CMAKE_INSTALL_PREFIX} "\n"
+string ( CONCAT FLUIDSYNTH_BUILD_SUMMARY
         "\n"
         "Audio / MIDI driver support:"
         ${AUDIO_MIDI_REPORT}
@@ -294,4 +286,26 @@ message( STATUS
         ${DEVEL_REPORT}
          )
 
+message ( STATUS "${FLUIDSYNTH_BUILD_SUMMARY}" )
+
+# Embed the summary as a C string literal, so that 'fluidsynth -V' can print it
+string ( REPLACE "\\" "\\\\" FLUIDSYNTH_BUILD_REPORT_C "${FLUIDSYNTH_BUILD_SUMMARY}" )
+string ( REPLACE "\"" "\\\"" FLUIDSYNTH_BUILD_REPORT_C "${FLUIDSYNTH_BUILD_REPORT_C}" )
+string ( REPLACE "\n" "\\n\"\\\n\"" FLUIDSYNTH_BUILD_REPORT_C "${FLUIDSYNTH_BUILD_REPORT_C}" )
+set ( FLUIDSYNTH_BUILD_REPORT_C "\"${FLUIDSYNTH_BUILD_REPORT_C}\"" )
+configure_file ( ${FluidSynth_SOURCE_DIR}/cmake_admin/report.h.in
+                 ${FluidSynth_BINARY_DIR}/report.h @ONLY )
+
+string ( CONCAT FLUIDSYNTH_BUILD_SUMMARY
+        "\n**************************************************************\n"
+        "Build Summary:\n"
+        "FluidSynth Version:    " ${FLUIDSYNTH_VERSION} "\n"
+        "Library version:       " ${LIB_VERSION_INFO} "\n"
+        "Git revision:          " ${FluidSynth_WC_REVISION} "\n"
+        "Build type:            " ${CMAKE_BUILD_TYPE} "\n"
+        "Install Prefix:        " ${CMAKE_INSTALL_PREFIX} "\n"
+        ${FLUIDSYNTH_BUILD_SUMMARY}
+         )
+
+message ( STATUS "${FLUIDSYNTH_BUILD_SUMMARY}" )
 message ( "**************************************************************\n\n" )

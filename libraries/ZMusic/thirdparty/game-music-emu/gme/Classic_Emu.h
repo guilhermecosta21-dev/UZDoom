@@ -18,9 +18,9 @@ protected:
 	// Services
 	enum { wave_type = 0x100, noise_type = 0x200, mixed_type = wave_type | noise_type };
 	void set_voice_types( int const* t ) { voice_types = t; }
-	blargg_err_t setup_buffer( long clock_rate );
+	blargg_err_t setup_buffer( uint32_t clock_rate );
 	long clock_rate() const { return clock_rate_; }
-	void change_clock_rate( long ); // experimental
+	void change_clock_rate( uint32_t ); // experimental
 
 	// Overridable
 	virtual void set_voice( int index, Blip_Buffer* center,
@@ -36,7 +36,7 @@ protected:
 private:
 	Multi_Buffer* buf;
 	Multi_Buffer* stereo_buffer; // NULL if using custom buffer
-	long clock_rate_;
+	uint32_t clock_rate_;
 	unsigned buf_changed_count;
 	int const* voice_types;
 };
@@ -58,9 +58,9 @@ protected:
 	enum { pad_extra = 8 };
 	blargg_vector<byte> rom;
 	long file_size_;
-	blargg_long rom_addr;
-	blargg_long mask;
-	blargg_long size_; // TODO: eliminate
+	int32_t rom_addr;
+	int32_t mask;
+	int32_t size_; // TODO: eliminate
 
 	blargg_err_t load_rom_data_( Data_Reader& in, int header_size, void* header_out,
 			int fill, long pad_size );
@@ -97,7 +97,7 @@ public:
 	byte* unmapped() { return rom.begin(); }
 
 	// Mask address to nearest power of two greater than size()
-	blargg_long mask_addr( blargg_long addr ) const
+	int32_t mask_addr( int32_t addr ) const
 	{
 		#ifdef check
 			check( addr <= mask );
@@ -106,10 +106,10 @@ public:
 	}
 
 	// Pointer to page starting at addr. Returns unmapped() if outside data.
-	byte* at_addr( blargg_long addr )
+	byte* at_addr( int32_t addr )
 	{
-		blargg_ulong offset = mask_addr( addr ) - rom_addr;
-		if ( offset > blargg_ulong (rom.size() - pad_size) )
+		uint32_t offset = mask_addr( addr ) - rom_addr;
+		if ( offset > uint32_t (rom.size() - pad_size) )
 			offset = 0; // unmapped
 		return &rom [offset];
 	}

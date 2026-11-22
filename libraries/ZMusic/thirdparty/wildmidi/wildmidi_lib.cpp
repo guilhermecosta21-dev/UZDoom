@@ -854,7 +854,7 @@ int Instruments::LoadConfig(const char *config_parm)
 							return -1;
 						}
 						reverb_listen_posy = (float) atof(line_tokens[1]);
-						if ((reverb_listen_posy > reverb_room_width)
+						if ((reverb_listen_posy > reverb_room_length)
 								|| (reverb_listen_posy < 0.0f)) {
 							_WM_ERROR(__FUNCTION__, __LINE__, WM_ERR_INVALID_ARG,
 									"(reverb_listen_posy set outside of room)",
@@ -1008,9 +1008,8 @@ int Instruments::LoadConfig(const char *config_parm)
 								return -1;
 							}
 						}
-						if (strnicmp(
-								&tmp_patch->filename[strlen(tmp_patch->filename)
-										- 4], ".pat", 4) != 0) {
+						const char *dotpat = strrchr(tmp_patch->filename, '.');
+						if (!dotpat || stricmp(dotpat, ".pat") != 0) {
 							strcat(tmp_patch->filename, ".pat");
 						}
 						tmp_patch->env[0].set = 0x00;
@@ -1519,6 +1518,14 @@ unsigned long int Renderer::get_inc(struct _mdi *mdi, struct _note *nte)
 		note_f = (nte->noteid & 0x7f) * 100;
 	}
 	note_f += mdi->channel[ch].pitch_adjust;
+	{
+		/* Apply GUS keyboard frequency scaling (Ultrasound SDK 13.4).
+		   64-bit intermediate: guards against 32-bit overflow on corrupt
+		   patch fields; the note_f clamp below then bounds the result. */
+		signed long int pivot = (signed long int)nte->sample->scale_frequency * 100;
+		long long scaled = (long long)(note_f - pivot) * nte->sample->scale_factor / 1024;
+		note_f = (signed long int)(pivot + scaled);
+	}
 	if (note_f < 0) {
 		note_f = 0;
 	} else if (note_f > 12700) {

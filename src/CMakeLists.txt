@@ -292,8 +292,14 @@ if (HAVE_VULKAN)
 	list( APPEND PROJECT_LIBRARIES "zvulkan" )
 endif()
 
-add_subdirectory("common/thirdparty/freetype-2.13.3")
-add_subdirectory("common/thirdparty/harfbuzz-7.3.0")
+# FreeType 2.14+ defaults to loading HarfBuzz at runtime (LoadLibrary/dlopen); keep the previous link-time detection
+set( FT_DYNAMIC_HARFBUZZ OFF CACHE BOOL "" FORCE )
+add_subdirectory("common/thirdparty/freetype-2.15.0")
+# Only the core harfbuzz library is used; don't build the extra libraries added in newer versions
+set( HB_BUILD_RASTER OFF CACHE BOOL "" FORCE )
+set( HB_BUILD_VECTOR OFF CACHE BOOL "" FORCE )
+set( HB_BUILD_GPU OFF CACHE BOOL "" FORCE )
+add_subdirectory("common/thirdparty/harfbuzz-15.2.0")
 add_subdirectory("utility/trex")
 list( APPEND PROJECT_LIBRARIES "trex" )
 list( APPEND PROJECT_LIBRARIES "zmusic" )

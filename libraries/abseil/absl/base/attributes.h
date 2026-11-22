@@ -494,8 +494,8 @@
 //
 // These attributes only take effect when the following conditions are met:
 //
-//   * The file/target is built in at least C++11 mode, with a Clang compiler
-//     that supports XRay attributes.
+//   * The file/target is built with a Clang compiler that supports XRay
+//     attributes.
 //   * The file/target is built with the -fxray-instrument flag set for the
 //     Clang/LLVM compiler.
 //   * The function is defined in the translation unit (the compiler honors the
@@ -529,6 +529,25 @@
 #define ABSL_XRAY_ALWAYS_INSTRUMENT
 #define ABSL_XRAY_NEVER_INSTRUMENT
 #define ABSL_XRAY_LOG_ARGS(N)
+#endif
+
+// ABSL_ATTRIBUTE_NULL_AFTER_MOVE
+//
+// Indicates that a user-defined smart-pointer-like type makes guarantees on the
+// state of a moved-from object, leaving it in a null state, where it can be
+// used as long as it is not dereferenced. In other words, these are the same
+// semantics that smart pointers from the standard library provide.
+//
+// The clang-tidy check bugprone-use-after-move allows member functions of types
+// marked with this attribute to be called on objects that have been moved from;
+// without the attribute, this would result in a use-after-move warning.
+#if ABSL_HAVE_CPP_ATTRIBUTE(clang::annotate) && defined(__clang__) && \
+    __clang_major__ >= 12
+#define ABSL_ATTRIBUTE_NULL_AFTER_MOVE                       \
+  [[clang::annotate("clang-tidy", "bugprone-use-after-move", \
+                    "null_after_move")]]
+#else
+#define ABSL_ATTRIBUTE_NULL_AFTER_MOVE
 #endif
 
 // ABSL_ATTRIBUTE_REINITIALIZES
@@ -915,6 +934,23 @@ struct AbslInternal_YouForgotToExplicitlyInitializeAField {
 #define ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(Owner)
 #endif
 
+// Internal attribute; name and documentation TBD.
+//
+// See the upstream documentation:
+// https://clang.llvm.org/docs/AttributeReference.html#lifetime_capture_by_this
+//
+// Note: ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this) is deprecated. Use
+// ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS instead.
+#if ABSL_HAVE_CPP_ATTRIBUTE(clang::lifetime_capture_by_this)
+#define ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS \
+  [[clang::lifetime_capture_by_this]]
+#elif ABSL_HAVE_CPP_ATTRIBUTE(clang::lifetime_capture_by)
+#define ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS \
+  ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY(this)
+#else
+#define ABSL_INTERNAL_ATTRIBUTE_CAPTURED_BY_THIS
+#endif
+
 // ABSL_ATTRIBUTE_VIEW indicates that a type is solely a "view" of data that it
 // points to, similarly to a span, string_view, or other non-owning reference
 // type.
@@ -933,7 +969,7 @@ struct AbslInternal_YouForgotToExplicitlyInitializeAField {
 // We disable this on Clang versions < 13 because of the following
 // false-positive:
 //
-//   absl::string_view f(absl::optional<absl::string_view> sv) { return *sv; }
+//   absl::string_view f(std::optional<absl::string_view> sv) { return *sv; }
 //
 // See the following links for details:
 // https://reviews.llvm.org/D64448
@@ -964,7 +1000,7 @@ struct AbslInternal_YouForgotToExplicitlyInitializeAField {
 // We disable this on Clang versions < 13 because of the following
 // false-positive:
 //
-//   absl::string_view f(absl::optional<absl::string_view> sv) { return *sv; }
+//   absl::string_view f(std::optional<absl::string_view> sv) { return *sv; }
 //
 // See the following links for details:
 // https://reviews.llvm.org/D64448

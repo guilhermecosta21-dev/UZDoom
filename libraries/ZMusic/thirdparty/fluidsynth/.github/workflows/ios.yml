@@ -8,11 +8,15 @@ on:
     paths-ignore:
       - '.azure/**'
       - '.circleci/**'
+      - '.github/workflows/freebsd.yml'
+      - '.github/workflows/api_doc_build.yml'
+      - '.github/workflows/os2.yml'
       - '.github/workflows/linux.yml'
       - '.github/workflows/solaris.yml'
       - '.github/workflows/windows.yml'
       - '.github/workflows/sonarcloud.yml'
-      - '.cirrus.yml'
+      - '.github/workflows/rendering-regression.yml'
+      - 'test/run-android-tests.sh'
       - 'README.md'
     tags:
       - 'v*'
@@ -34,11 +38,11 @@ jobs:
     # well on Windows or Mac.  You can convert this to a matrix build if you need
     # cross-platform coverage.
     # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
-    runs-on: macos-latest
+    runs-on: macos-26
     outputs:
       artifact_name: ${{ steps.artifact_name.outputs.name }}
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         submodules: recursive
     - name: Build
@@ -71,10 +75,10 @@ jobs:
     if: github.ref_type == 'tag'
     needs:
       - ios-build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     name: 🚀 Publish Release Artifacts
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         submodules: recursive
 

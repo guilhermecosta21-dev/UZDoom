@@ -27,7 +27,7 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA */
 
 #include "blargg_source.h"
 
-gme_type_t const* gme_type_list()
+gme_type_t const* gme_type_list( void )
 {
 	static gme_type_t const gme_type_list_ [] = {
 #ifdef GME_TYPE_LIST
@@ -395,8 +395,10 @@ void      gme_set_fade_msecs ( Music_Emu* me, int start_msec, int fade_msec ) { 
 int       gme_track_ended    ( Music_Emu const* me )                { return me->track_ended(); }
 int       gme_tell           ( Music_Emu const* me )                { return me->tell(); }
 int       gme_tell_samples   ( Music_Emu const* me )                { return me->tell_samples(); }
+int       gme_tell_scaled    ( Music_Emu const* me )                { return me->tell_scaled(); }
 gme_err_t gme_seek           ( Music_Emu* me, int msec )            { return me->seek( msec ); }
 gme_err_t gme_seek_samples   ( Music_Emu* me, int n )               { return me->seek_samples( n ); }
+gme_err_t gme_seek_scaled    ( Music_Emu* me, int msec )            { return me->seek_scaled( msec ); }
 int       gme_voice_count    ( Music_Emu const* me )                { return me->voice_count(); }
 void      gme_ignore_silence ( Music_Emu* me, int disable )         { me->ignore_silence( disable != 0 ); }
 void      gme_set_tempo      ( Music_Emu* me, double t )            { me->set_tempo( t ); }

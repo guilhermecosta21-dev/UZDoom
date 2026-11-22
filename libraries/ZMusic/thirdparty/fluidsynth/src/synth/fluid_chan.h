@@ -87,6 +87,7 @@ struct _fluid_channel_t
     /* Poly Mono variables see macro access description */
     int mode;								/**< Poly Mono mode */
     int mode_val;							/**< number of channel in basic channel group */
+    int mono_val;							/**< M of the last Mono On (CC126) received by a basic channel, 0 means all channels */
 
     /* monophonic list - legato detector */
     unsigned char i_first;          /**< First note index */
@@ -110,6 +111,7 @@ struct _fluid_channel_t
 
     unsigned char channel_pressure;                 /**< MIDI channel pressure from [0;127] */
     float pitch_wheel_sensitivity;          /**< Current pitch wheel sensitivity */
+    float modulation_depth_range;          /**< Modulation depth range in cents (RPN 0x05) */
     short pitch_bend;                      /**< Current pitch bend value */
     /* Sostenuto order id gives the order of SostenutoOn event.
      * This value is useful to known when the sostenuto pedal is depressed
@@ -176,6 +178,10 @@ fluid_real_t fluid_channel_get_key_pitch(fluid_channel_t *chan, int key);
   ((chan)->pitch_wheel_sensitivity)
 #define fluid_channel_set_pitch_wheel_sensitivity(chan, val) \
   ((chan)->pitch_wheel_sensitivity = (val))
+#define fluid_channel_get_modulation_depth_range(chan) \
+  ((chan)->modulation_depth_range)
+#define fluid_channel_set_modulation_depth_range(chan, val) \
+  ((chan)->modulation_depth_range = (val))
 #define fluid_channel_get_num(chan)             ((chan)->channum)
 #define fluid_channel_set_interp_method(chan, new_method) \
   ((chan)->interp_method = (new_method))

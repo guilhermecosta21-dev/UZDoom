@@ -1,4 +1,4 @@
-Game_Music_Emu 0.6.2: Game Music Emulators
+Game_Music_Emu 0.6.5: Game Music Emulators
 ------------------------------------------
 Game_Music_Emu is a collection of video game music file emulators that
 support the following formats and systems:
@@ -34,20 +34,20 @@ several architectures, Mac OS, MorphOS, Xbox, PlayStation Portable,
 GP2X, and Nintendo DS.
 
 Author : Shay Green <gblargg@gmail.com>
-Website: https://bitbucket.org/mpyne/game-music-emu/wiki/Home
+Website: https://github.com/libgme/game-music-emu/wiki
 License: GNU Lesser General Public License (LGPL)
 
 Note: When you will use MAME YM2612 emulator, the license of library
 will be GNU General Public License (GPL) v2.0+!
 
-Current Maintainer: Michael Pyne <mpyne@purinchu.net>
+Current Maintainers: Vitaly Novichkov <admin@wohlnet.ru>, Michael Pyne <mpyne@purinchu.net>
 
 Getting Started
 ---------------
 Build a program consisting of demo/basics.c, demo/Wave_Writer.cpp, and
 all source files in gme/.
 
-Or, if you have CMake 2.6 or later, execute at a command prompt (from the
+Or, if you have CMake 3.3 or later, execute at a command prompt (from the
 extracted source directory):
 
     mkdir build
@@ -128,6 +128,8 @@ gme/
   Hes_Emu.h           TurboGrafx-16/PC Engine HES emulator
   Hes_Apu.cpp
   Hes_Apu.h
+  Hes_Apu_Adpcm.cpp
+  Hes_Apu_Adpcm.h
   Hes_Cpu.cpp
   Hes_Cpu.h
   hes_cpu_io.h

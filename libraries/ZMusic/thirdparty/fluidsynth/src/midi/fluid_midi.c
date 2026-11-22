@@ -871,6 +871,12 @@ fluid_midi_file_read_event(fluid_midi_file *mf, fluid_track_t *track)
             }
 
             tempo = (metadata[0] << 16) + (metadata[1] << 8) + metadata[2];
+            if(tempo == 0)
+            {
+                FLUID_LOG(FLUID_ERR, "Invalid zero tempo in MIDI file");
+                result = FLUID_FAILED;
+                break;
+            }
             evt = new_fluid_midi_event();
 
             if(evt == NULL)
@@ -2575,7 +2581,7 @@ int fluid_player_set_bpm(fluid_player_t *player, int bpm)
         return FLUID_FAILED; /* to avoid a division by 0 */
     }
 
-    return fluid_player_set_midi_tempo(player, 60000000L / bpm);
+    return fluid_player_set_tempo(player, FLUID_PLAYER_TEMPO_EXTERNAL_BPM, (double)bpm);
 }
 
 /**
@@ -2752,7 +2758,10 @@ fluid_midi_parser_parse(fluid_midi_parser_t *parser, unsigned char c)
     if(c >= 0xF8)
     {
         parser->event.type = c;
-        parser->status = 0; /* clear the status */
+        if(c == MIDI_SYSTEM_RESET)
+        {
+            parser->status = 0; /* clear the status */
+        }
         return &parser->event;
     }
 

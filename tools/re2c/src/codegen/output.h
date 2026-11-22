@@ -1,157 +1,184 @@
 #ifndef _RE2C_CODEGEN_OUTPUT_
 #define _RE2C_CODEGEN_OUTPUT_
 
-#include "src/util/c99_stdint.h"
-#include <stddef.h>
-#include <stdio.h>
-#include <fstream>
+#include <stdint.h>
 #include <set>
-#include <sstream>
 #include <string>
+#include <sstream>
 #include <vector>
+#include <map>
+#include <memory>
 
-#include "src/codegen/label.h"
-#include "src/util/counter.h"
-#include "src/util/forbid_copy.h"
+#include "src/constants.h"
+#include "src/codegen/code.h"
+#include "src/dfa/tcmd.h"
+#include "src/msg/location.h"
+#include "src/options/opt.h"
+#include "src/util/allocator.h"
+#include "src/util/attribute.h"
 
-namespace re2c
-{
+namespace re2c {
 
-class rule_rank_t;
+// forward decls
+class Msg;
+struct Adfa;
+struct Opt;
+struct opt_t;
+struct OutputBlock;
+struct State;
+using Adfas = std::vector<std::unique_ptr<Adfa>>;
 
-struct OutputFragment
-{
-	enum type_t
-		{ CODE
-//		, CONFIG
-		, LINE_INFO
-		, STATE_GOTO
-		, TYPES
-		, WARN_CONDITION_ORDER
-		, YYACCEPT_INIT
-		, YYMAXFILL
-		};
+class Scratchbuf {
+    OutAllocator& alc;
+    std::ostringstream os;
 
-	type_t type;
-	std::ostringstream stream;
-	uint32_t indent;
+  public:
+    explicit Scratchbuf(OutAllocator& alc): alc(alc), os() {}
+    bool empty() const { return os.str().empty(); }
+    std::ostringstream& stream() { return os; }
+    Scratchbuf& i32(int32_t u) { os << u; return *this; }
+    Scratchbuf& u32(uint32_t u) { os << u; return *this; }
+    Scratchbuf& u64(uint64_t u) { os << u; return *this; }
+    Scratchbuf& str(const std::string& s) { os << s; return *this; }
+    Scratchbuf& cstr(const char* s) { os << s; return *this; }
+    Scratchbuf& label(const std::string& s) { os << s; return *this; }
+    Scratchbuf& label(uint32_t u) { os << u; return *this; }
+    Scratchbuf& exact_uint(size_t width);
+    const char* flush();
 
-	OutputFragment (type_t t, uint32_t i);
-	uint32_t count_lines ();
+    Scratchbuf& unchecked_label(const Label& l);
+    Scratchbuf& label(const Label& l);
 };
 
-struct OutputBlock
-{
-	std::vector<OutputFragment *> fragments;
-	bool used_yyaccept;
-	bool force_start_label;
-	std::string user_start_label;
-	uint32_t line;
+using blocks_t = std::vector<OutputBlock*>;
+using blocks_citer_t = blocks_t::const_iterator;
+using tagnames_t = std::set<std::string>;
 
-	OutputBlock ();
-	~OutputBlock ();
+struct RenderContext {
+    std::ostringstream os;
+    const Msg& msg;
+    const opt_t* opts;
+    const std::string& file;
+    uint32_t line;
+    uint32_t ind;
+    bool oneline_mode;
+
+    RenderContext(const Msg& msg, const std::string& file)
+        : os(), msg(msg), opts(nullptr), file(file), line(1), ind(0), oneline_mode(false) {}
+    FORBID_COPY(RenderContext);
 };
 
-struct OutputFile
-{
-public:
-	const char * file_name;
-
-private:
-	FILE * file;
-	std::vector<OutputBlock *> blocks;
-
-public:
-	counter_t<label_t> label_counter;
-	bool warn_condition_order;
-
-private:
-	std::ostream & stream ();
-	void insert_code ();
-
-public:
-	OutputFile (const char * fn);
-	~OutputFile ();
-
-	bool open ();
-
-	void new_block ();
-
-	// immediate output
-	OutputFile & wraw (const char * s, size_t n);
-	OutputFile & wc (char c);
-	OutputFile & wc_hex (uint32_t n);
-	OutputFile & wu32 (uint32_t n);
-	OutputFile & wu32_hex (uint32_t n);
-	OutputFile & wu32_width (uint32_t n, int w);
-	OutputFile & wu64 (uint64_t n);
-	OutputFile & wstring (const std::string & s);
-	OutputFile & ws (const char * s);
-	OutputFile & wlabel (label_t l);
-	OutputFile & wrank (rule_rank_t l);
-	OutputFile & wrange (uint32_t u, uint32_t l);
-	OutputFile & wline_info (uint32_t l, const char * fn);
-	OutputFile & wversion_time ();
-	OutputFile & wuser_start_label ();
-	OutputFile & wind (uint32_t ind);
-
-	// delayed output
-	OutputFile & wdelay_line_info ();
-	OutputFile & wdelay_state_goto (uint32_t ind);
-	OutputFile & wdelay_types ();
-	OutputFile & wdelay_warn_condition_order ();
-	OutputFile & wdelay_yyaccept_init (uint32_t ind);
-	OutputFile & wdelay_yymaxfill ();
-
-	void set_used_yyaccept ();
-	bool get_used_yyaccept () const;
-	void set_force_start_label (bool force);
-	void set_user_start_label (const std::string & label);
-	bool get_force_start_label () const;
-	void set_block_line (uint32_t l);
-	uint32_t get_block_line () const;
-
-	void emit (const std::vector<std::string> & types, size_t max_fill);
-
-	FORBID_COPY (OutputFile);
+class RenderCallback {
+  public:
+    virtual void render_var(StxVarId var);
+    virtual size_t get_list_size(StxVarId var) const;
+    virtual void start_list(StxVarId var, size_t lbound, size_t rbound);
+    virtual bool next_in_list(StxVarId var);
+    virtual bool eval_cond(StxLOpt opt);
+    virtual ~RenderCallback() = default;
 };
 
-struct HeaderFile
-{
-	HeaderFile (const char * fn);
-	~HeaderFile ();
-	bool open ();
-	void emit (const std::vector<std::string> & types);
+struct StartCond {
+    std::string name;
+    uint32_t number;
+};
+using StartConds = std::vector<StartCond>;
 
-private:
-	std::ostringstream stream;
-	const char * file_name;
-	FILE * file;
+using storable_states_t = std::map<uint32_t, CodeList*>;
 
-	FORBID_COPY (HeaderFile);
+struct OutputBlock {
+    InputBlock kind;
+    std::string name;
+    const loc_t loc;
+    CodeList* code;
+    bool used_yyaccept;
+    bool have_user_code;
+    StartConds conds;
+    tagnames_t stags;
+    tagnames_t mtags;
+    tagnames_t svars;
+    tagnames_t mvars;
+    const opt_t* opts;
+    Adfas dfas;
+
+    size_t max_fill;   // YYMAXFILL
+    size_t max_nmatch; // YYMAXNMATCH
+
+    // Used in the state switch (with `-f --storable-state` option).
+    Label* start_label;          // start label of this block
+    storable_states_t fill_goto; // transitions to YYFILL states
+
+    // precomputed YYFN parts with block-level options (in rec/func mode)
+    CodeFnCommon* fn_common;
+    // precomputed relational operators
+    const char* binops[OP_COUNT];
+
+    OutputBlock(InputBlock kind, const std::string& name, const loc_t& loc);
+    ~OutputBlock();
+    FORBID_COPY(OutputBlock);
 };
 
-struct Output
-{
-	OutputFile source;
-	HeaderFile header;
-	std::vector<std::string> types;
-	std::set<std::string> skeletons;
-	size_t max_fill;
+struct Output {
+    OutAllocator& allocator;
+    Msg& msg;
+    blocks_t cblocks;  // .c file
+    blocks_t hblocks;  // .h file
+    blocks_t* pblocks; // selector
+    blocks_t tmpblocks;
+    uint32_t label_counter;
+    uint32_t fill_label_counter;
+    bool state_goto;
+    bool cond_enum_autogen; // true unless an explicit `conditions` block is used
+    bool warn_condition_order;
+    bool need_header;
+    bool done_mtag_defs;
+    std::set<std::string> skeletons;
+    Scratchbuf scratchbuf;
+    OutputBlock* current_block;
 
-	Output (const char * source_name, const char * header_name);
-	~Output ();
+    // whole-program options accumulated for all non-reuse blocks
+    const opt_t* total_opts;
+
+    // precomputed YYFN parts with whole-program options (in rec/func mode)
+    CodeFnCommon* fn_common;
+
+    Output(OutAllocator& alc, Msg& msg);
+    ~Output();
+    OutputBlock& block();
+    void set_current_block(OutputBlock* block);
+    bool open();
+    Ret new_block(Opt& opts, InputBlock kind, std::string name, const loc_t& loc) NODISCARD;
+    void header_mode(bool on);
+    bool in_header() const;
+    void gen_raw(const uint8_t* s, const uint8_t* e, bool newline = false);
+    void gen_stmt(Code* stmt);
+    Ret gen_prolog(Opt& opts, const loc_t& loc);
+    void gen_epilog();
+    FORBID_COPY(Output);
 };
 
-void output_line_info (std::ostream &, uint32_t, const char *);
-void output_state_goto (std::ostream &, uint32_t, uint32_t);
-void output_types (std::ostream &, uint32_t, const std::vector<std::string> &);
-void output_version_time (std::ostream &);
-void output_yyaccept_init (std::ostream &, uint32_t, bool);
-void output_yymaxfill (std::ostream &, size_t);
+void init_go(CodeGo* go);
+bool endstate(const State* s);
+bool consume(const State* s);
+State* fallback_for_state(const Adfa& dfa, const State* state, tcid_t* ptags);
+std::string bitmap_name(const opt_t* opts, const std::string& cond);
+CodeList* gen_bitmap(Output& output, const CodeBitmap* bitmap, const std::string& cond);
+void gen_tags(Scratchbuf& buf, const opt_t* opts, Code* code, const tagnames_t& tags);
+CodeList* gen_goto_after_fill(
+        Output& output, const Adfa& dfa, const State* from, const CodeJump* jump);
+void gen_dfa_as_blocks_with_labels(Output& output, const Adfa& dfa, CodeList* stmts);
+void gen_dfa_as_switch_cases(Output& output, Adfa& dfa, CodeCases* cases);
+void wrap_dfas_in_loop_switch(Output& output, CodeList* stmts, CodeCases* cases);
+void expand_fintags(Output& output, const Tag& tag, std::vector<const char*>& fintags);
+std::string captvar_name(size_t index, const opt_t* opts);
+std::string vartag_name(tagver_t ver, const opt_t* opts, bool is_mtag);
+std::string vartag_expr(tagver_t ver, const opt_t* opts, bool is_mtag);
+void gen_peek_expr(std::ostream& os, const opt_t* opts);
 
-// helpers
-std::string output_get_state ();
+Ret codegen_analyze(Output& output) NODISCARD;
+Ret codegen_generate(Output& output) NODISCARD;
+void codegen_fixup(Output& output);
+Ret codegen_render(Output& outptu) NODISCARD;
 
 } // namespace re2c
 

@@ -146,6 +146,9 @@ static const unsigned adl_emulatorSupport = 0
 //! Check emulator availability
 bool adl_isEmulatorAvailable(int emulator)
 {
+    if(emulator < 0 || (unsigned)emulator >= sizeof(adl_emulatorSupport) * 8)
+        return false;
+
     return (adl_emulatorSupport & (1u << (unsigned)emulator)) != 0;
 }
 
@@ -153,8 +156,10 @@ bool adl_isEmulatorAvailable(int emulator)
 int adl_getHighestEmulator()
 {
     int emu = -1;
+
     for(unsigned m = adl_emulatorSupport; m > 0; m >>= 1)
         ++emu;
+
     return emu;
 }
 
@@ -163,11 +168,13 @@ int adl_getLowestEmulator()
 {
     int emu = -1;
     unsigned m = adl_emulatorSupport;
+
     if(m > 0)
     {
         for(emu = 0; (m & 1) == 0; m >>= 1)
             ++emu;
     }
+
     return emu;
 }
 

@@ -2573,12 +2573,12 @@ int fluid_handle_channelsmode(void *data, int ac, char **av,
                 const char *p_basicchan;  /* field basic channel */
                 const char *p_mode;  /* field mode */
                 const char *p_nbr; /* field Nbr */
+                char nbr[10]; /* field Nbr */
                 static const char blank[] = "--"; /* field empty */
 
                 if(chan == basic_chan)
                 {
                     /* This channel is a basic channel */
-                    char nbr[10]; /* field Nbr */
                     FLUID_SNPRINTF(nbr, sizeof(nbr), "nbr:%3d", val);
                     p_nbr = nbr;
                     p_mode = mode_name[mode];
@@ -4113,7 +4113,11 @@ fluid_cmd_handler_destroy_hash_value(void *value)
 /**
  * Create a new command handler.
  *
- * See new_fluid_cmd_handler2() for more information.
+ * @sa See new_fluid_cmd_handler2() for more information.
+ *
+ * @param synth If not NULL, all the default synthesizer commands will be added to the new handler.
+ * @param router If not NULL, all the default midi_router commands will be added to the new handler.
+ * @return New command handler, or NULL if alloc failed
  */
 fluid_cmd_handler_t *new_fluid_cmd_handler(fluid_synth_t *synth, fluid_midi_router_t *router)
 {
@@ -4426,7 +4430,8 @@ void delete_fluid_client(fluid_client_t *client)
 /**
  * Create a new TCP/IP command shell server.
  *
- * See new_fluid_server2() for more information.
+ * @sa See new_fluid_server2() for more information.
+ * @return New shell server instance or NULL on error
  */
 fluid_server_t *
 new_fluid_server(fluid_settings_t *settings,
@@ -4477,6 +4482,7 @@ new_fluid_server2(fluid_settings_t *settings,
 
     if(server->socket == NULL)
     {
+        fluid_mutex_destroy(server->mutex);
         FLUID_FREE(server);
         return NULL;
     }
@@ -4511,6 +4517,7 @@ delete_fluid_server(fluid_server_t *server)
     fluid_return_if_fail(server != NULL);
 
     fluid_server_close(server);
+    fluid_mutex_destroy(server->mutex);
 
     FLUID_FREE(server);
 #endif

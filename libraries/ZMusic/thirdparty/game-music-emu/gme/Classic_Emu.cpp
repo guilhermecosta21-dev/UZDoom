@@ -79,13 +79,13 @@ void Classic_Emu::mute_voices_( int mask )
 	}
 }
 
-void Classic_Emu::change_clock_rate( long rate )
+void Classic_Emu::change_clock_rate( uint32_t rate )
 {
 	clock_rate_ = rate;
 	buf->clock_rate( rate );
 }
 
-blargg_err_t Classic_Emu::setup_buffer( long rate )
+blargg_err_t Classic_Emu::setup_buffer( uint32_t rate )
 {
 	change_clock_rate( rate );
 	RETURN_ERR( buf->set_channel_count( voice_count() ) );
@@ -115,7 +115,7 @@ blargg_err_t Classic_Emu::play_( long count, sample_t* out )
 				remute_voices();
 			}
 			int msec = buf->length();
-			blip_time_t clocks_emulated = (blargg_long) msec * clock_rate_ / 1000;
+			blip_time_t clocks_emulated = (int32_t) msec * clock_rate_ / 1000;
 			RETURN_ERR( run_clocks( clocks_emulated, msec ) );
 			assert( clocks_emulated );
 			buf->end_frame( clocks_emulated );
@@ -182,9 +182,9 @@ void Rom_Data_::set_addr_( long addr, int unit )
 
 	if ( 0 )
 	{
-		debug_printf( "addr: %X\n", addr );
-		debug_printf( "file_size: %d\n", file_size_ );
-		debug_printf( "rounded: %d\n", rounded );
+		debug_printf( "addr: %X\n", (int)addr );
+		debug_printf( "file_size: %ld\n", file_size_ );
+		debug_printf( "rounded: %ld\n", rounded );
 		debug_printf( "mask: $%X\n", mask );
 	}
 }

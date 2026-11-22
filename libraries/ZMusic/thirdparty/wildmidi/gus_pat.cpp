@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 #include "gus_pat.h"
 #include "common.h"
@@ -142,9 +143,9 @@ static int convert_8sp(unsigned char *data, struct _sample *gus_sample) {
 	gus_sample->data = (short*)calloc((new_length + 2), sizeof(signed short int));
 	if (gus_sample->data != NULL) {
 		write_data = gus_sample->data;
-		do {
+		while (read_data < read_end) {
 			*write_data++ = (*read_data++) << 8;
-		} while (read_data != read_end);
+		}
 
 		*write_data = (*read_data++ << 8);
 		write_data_a = write_data + dloop_length;
@@ -162,10 +163,8 @@ static int convert_8sp(unsigned char *data, struct _sample *gus_sample) {
 		*write_data = (*read_data++ << 8);
 		*write_data_b++ = *write_data;
 		read_end = data + gus_sample->data_length;
-		if (read_data != read_end) {
-			do {
-				*write_data_b++ = (*read_data++) << 8;
-			} while (read_data != read_end);
+		while (read_data < read_end) {
+			*write_data_b++ = (*read_data++) << 8;
 		}
 		gus_sample->loop_start += loop_length;
 		gus_sample->loop_end += dloop_length;
@@ -293,9 +292,9 @@ static int convert_8up(unsigned char *data, struct _sample *gus_sample) {
 	gus_sample->data = (short*)calloc((new_length + 2), sizeof(signed short int));
 	if (gus_sample->data != NULL) {
 		write_data = gus_sample->data;
-		do {
+		while (read_data < read_end) {
 			*write_data++ = ((*read_data++) ^ 0x80) << 8;
-		} while (read_data != read_end);
+		}
 
 		*write_data = ((*read_data++) ^ 0x80) << 8;
 		write_data_a = write_data + dloop_length;
@@ -313,10 +312,8 @@ static int convert_8up(unsigned char *data, struct _sample *gus_sample) {
 		*write_data = ((*read_data++) ^ 0x80) << 8;
 		*write_data_b++ = *write_data;
 		read_end = data + gus_sample->data_length;
-		if (read_data != read_end) {
-			do {
-				*write_data_b++ = ((*read_data++) ^ 0x80) << 8;
-			} while (read_data != read_end);
+		while (read_data < read_end) {
+			*write_data_b++ = ((*read_data++) ^ 0x80) << 8;
 		}
 		gus_sample->loop_start += loop_length;
 		gus_sample->loop_end += dloop_length;
@@ -839,25 +836,36 @@ struct _sample * Instruments::load_gus_pat(const char *filename)
 		}
 
 		gus_sample->next = NULL;
+
+		/* GHSA-c2fg-6v3f-77wq: guard the 96-byte sample header read below.
+		 * no_of_samples (file byte 198) is untrusted, so gus_ptr may already
+		 * be past the buffer on any iteration. */
+		if (gus_ptr > gus_size || gus_size - gus_ptr < 96) {
+			_WM_ERROR(__FUNCTION__, __LINE__, WM_ERR_CORUPT, "(too short)", 0);
+			_WM_ERROR(__FUNCTION__, __LINE__, WM_ERR_LOAD, filename, 0);
+			free(gus_patch);
+			return NULL;
+		}
+
 		gus_sample->loop_fraction = gus_patch[gus_ptr + 7];
-		gus_sample->data_length = (gus_patch[gus_ptr + 11] << 24)
+		gus_sample->data_length = ((uint32_t)gus_patch[gus_ptr + 11] << 24)
 				| (gus_patch[gus_ptr + 10] << 16)
 				| (gus_patch[gus_ptr + 9] << 8) | gus_patch[gus_ptr + 8];
-		gus_sample->loop_start = (gus_patch[gus_ptr + 15] << 24)
+		gus_sample->loop_start = ((uint32_t)gus_patch[gus_ptr + 15] << 24)
 				| (gus_patch[gus_ptr + 14] << 16)
 				| (gus_patch[gus_ptr + 13] << 8) | gus_patch[gus_ptr + 12];
-		gus_sample->loop_end = (gus_patch[gus_ptr + 19] << 24)
+		gus_sample->loop_end = ((uint32_t)gus_patch[gus_ptr + 19] << 24)
 				| (gus_patch[gus_ptr + 18] << 16)
 				| (gus_patch[gus_ptr + 17] << 8) | gus_patch[gus_ptr + 16];
 		gus_sample->rate = (gus_patch[gus_ptr + 21] << 8)
 				| gus_patch[gus_ptr + 20];
-		gus_sample->freq_low = ((gus_patch[gus_ptr + 25] << 24)
+		gus_sample->freq_low = (((uint32_t)gus_patch[gus_ptr + 25] << 24)
 				| (gus_patch[gus_ptr + 24] << 16)
 				| (gus_patch[gus_ptr + 23] << 8) | gus_patch[gus_ptr + 22]);
-		gus_sample->freq_high = ((gus_patch[gus_ptr + 29] << 24)
+		gus_sample->freq_high = (((uint32_t)gus_patch[gus_ptr + 29] << 24)
 				| (gus_patch[gus_ptr + 28] << 16)
 				| (gus_patch[gus_ptr + 27] << 8) | gus_patch[gus_ptr + 26]);
-		gus_sample->freq_root = ((gus_patch[gus_ptr + 33] << 24)
+		gus_sample->freq_root = (((uint32_t)gus_patch[gus_ptr + 33] << 24)
 				| (gus_patch[gus_ptr + 32] << 16)
 				| (gus_patch[gus_ptr + 31] << 8) | gus_patch[gus_ptr + 30]);
 
@@ -873,6 +881,15 @@ struct _sample * Instruments::load_gus_pat(const char *filename)
 				gus_patch[gus_ptr+52], gus_patch[gus_ptr+53], gus_patch[gus_ptr+54]);
 #endif
 		gus_sample->modes = gus_patch[gus_ptr + 55];
+		gus_sample->scale_frequency = gus_patch[gus_ptr + 56]
+				| (gus_patch[gus_ptr + 57] << 8);
+		gus_sample->scale_factor = gus_patch[gus_ptr + 58]
+				| (gus_patch[gus_ptr + 59] << 8);
+		/* some pre-1.10 patches leave both zero; treat as identity. */
+		if (gus_sample->scale_factor == 0 && gus_sample->scale_frequency == 0) {
+			gus_sample->scale_frequency = 60;
+			gus_sample->scale_factor = 1024;
+		}
 		GUSPAT_START_DEBUG(); GUSPAT_MODE_DEBUG(gus_patch[gus_ptr+55], SAMPLE_16BIT, "16bit "); GUSPAT_MODE_DEBUG(gus_patch[gus_ptr+55], SAMPLE_UNSIGNED, "Unsigned "); GUSPAT_MODE_DEBUG(gus_patch[gus_ptr+55], SAMPLE_LOOP, "Loop "); GUSPAT_MODE_DEBUG(gus_patch[gus_ptr+55], SAMPLE_PINGPONG, "PingPong "); GUSPAT_MODE_DEBUG(gus_patch[gus_ptr+55], SAMPLE_REVERSE, "Reverse "); GUSPAT_MODE_DEBUG(gus_patch[gus_ptr+55], SAMPLE_SUSTAIN, "Sustain "); GUSPAT_MODE_DEBUG(gus_patch[gus_ptr+55], SAMPLE_ENVELOPE, "Envelope "); GUSPAT_MODE_DEBUG(gus_patch[gus_ptr+55], SAMPLE_CLAMPED, "Clamped "); GUSPAT_END_DEBUG();
 
 		if (gus_sample->loop_start > gus_sample->loop_end) {
@@ -882,6 +899,21 @@ struct _sample * Instruments::load_gus_pat(const char *filename)
 			gus_sample->loop_fraction =
 					((gus_sample->loop_fraction & 0x0f) << 4)
 							| ((gus_sample->loop_fraction & 0xf0) >> 4);
+		}
+
+		/* GHSA-g5cc-5xv7-5f32: bounds-check header-supplied sizes so the sample
+		 * converters cannot integer-overflow their calloc size or read past the
+		 * source buffer. All 16 convert_* paths derive their allocation and
+		 * write offsets from these three fields. Header-range guard above
+		 * already ensures gus_ptr + 96 <= gus_size. */
+		if (gus_sample->data_length == 0
+			|| gus_sample->data_length > gus_size - gus_ptr - 96
+			|| gus_sample->loop_end > gus_sample->data_length
+			|| gus_sample->data_length > (UINT32_MAX >> 10)) {
+			_WM_ERROR(__FUNCTION__, __LINE__, WM_ERR_CORUPT, "(invalid sample size)", 0);
+			_WM_ERROR(__FUNCTION__, __LINE__, WM_ERR_LOAD, filename, 0);
+			free(gus_patch);
+			return NULL;
 		}
 
 		/*

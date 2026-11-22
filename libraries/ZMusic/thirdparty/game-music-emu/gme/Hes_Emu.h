@@ -6,6 +6,7 @@
 
 #include "Classic_Emu.h"
 #include "Hes_Apu.h"
+#include "Hes_Apu_Adpcm.h"
 #include "Hes_Cpu.h"
 
 class Hes_Emu : private Hes_Cpu, public Classic_Emu {
@@ -62,8 +63,8 @@ private:
 
 	struct {
 		hes_time_t last_time;
-		blargg_long count;
-		blargg_long load;
+		int32_t count;
+		int32_t load;
 		int raw_load;
 		byte enabled;
 		byte fired;
@@ -85,6 +86,7 @@ private:
 
 	// large items
 	Hes_Apu apu;
+	Hes_Apu_Adpcm adpcm;
 	byte sgx [3 * page_size + cpu_padding];
 
 	void irq_changed();

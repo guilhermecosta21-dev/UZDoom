@@ -32,11 +32,40 @@ absl_cc_library(
 # Internal-only target, do not depend on directly.
 absl_cc_library(
   NAME
+    base_cpu_detect
+  HDRS
+    "internal/cpu_detect.h"
+  SRCS
+    "internal/cpu_detect.cc"
+  DEPS
+    absl::base
+    absl::config
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+)
+
+# Internal-only target, do not depend on directly.
+absl_cc_library(
+  NAME
     errno_saver
   HDRS
     "internal/errno_saver.h"
   DEPS
     absl::config
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+)
+
+absl_cc_library(
+  NAME
+    hardening
+  HDRS
+    "internal/hardening.h"
+  SRCS
+    "internal/hardening.cc"
+  DEPS
+    absl::config
+    absl::core_headers
   COPTS
     ${ABSL_DEFAULT_COPTS}
 )
@@ -406,6 +435,20 @@ absl_cc_test(
 
 absl_cc_test(
   NAME
+    hardening_test
+  SRCS
+    "internal/hardening_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::config
+    absl::core_headers
+    absl::hardening
+    GTest::gtest_main
+)
+
+absl_cc_test(
+  NAME
     bit_cast_test
   SRCS
     "bit_cast_test.cc"
@@ -594,6 +637,19 @@ absl_cc_test(
 
 absl_cc_test(
   NAME
+    cpu_detect_test
+  SRCS
+    "internal/cpu_detect_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::base_cpu_detect
+    absl::config
+    GTest::gtest_main
+)
+
+absl_cc_test(
+  NAME
     low_level_alloc_test
   SRCS
     "internal/low_level_alloc_test.cc"
@@ -765,7 +821,6 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::core_headers
-    absl::optional
     GTest::gtest_main
 )
 

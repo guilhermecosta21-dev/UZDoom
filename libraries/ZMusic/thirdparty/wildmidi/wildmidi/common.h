@@ -59,6 +59,8 @@ struct _sample {
 	unsigned int inc_div;
 	signed short *data;
 	struct _sample *next;
+	unsigned short scale_frequency;
+	unsigned short scale_factor;
 };
 
 struct _env {
